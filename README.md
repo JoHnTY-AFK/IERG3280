@@ -357,7 +357,7 @@ This project was developed for IERG3280 and is not actively maintained. However,
 
 For questions or feedback, please contact:  
 Tsoi Ming Hon  
-[Your Email or Preferred Contact Method]
+johntycss@gmail.com
 
 ---
 
