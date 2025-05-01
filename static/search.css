@@ -1,0 +1,75 @@
+/* Custom styles for Text Search Engine */
+
+/* Loader animation */
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 5px dotted #3b82f6;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    box-sizing: border-box;
+    animation: rotation 2s linear infinite;
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Ensure font consistency */
+.font-inter {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Override Tailwind defaults for specific elements */
+.result:hover {
+    transform: translateY(-2px);
+}
+
+button:hover {
+    transform: scale(1.05);
+}
+
+/* Highlighted text */
+.bg-yellow-200 {
+    background-color: #fefcbf;
+    font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .container {
+        padding: 1rem;
+    }
+
+    input[type="text"], select {
+        font-size: 14px;
+        padding: 0.75rem;
+    }
+
+    button {
+        padding: 0.75rem 1.5rem;
+        font-size: 14px;
+    }
+
+    .tab-button {
+        font-size: 14px;
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Accessibility improvements */
+[aria-label] {
+    outline: none;
+}
+
+[aria-label]:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* High contrast for text */
+.preview {
+    color: #1f2937; /* Darker than text-gray-600 for better contrast */
+}

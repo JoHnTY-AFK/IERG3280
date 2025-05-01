@@ -1,0 +1,9 @@
+pip3 install -r requirements.txt
+python3 setup.py
+source venv/bin/activate
+python3 -m src.prepare_20newsgroups
+python3 -m src.preprocess
+python3 -m src.index_builder
+python3 -m tests.test_search
+python3 -m src.search
+python3 app.py

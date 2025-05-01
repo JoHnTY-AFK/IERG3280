@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Search Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='search.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@heroicons/vue@2.1.5"></script>
+</head>
+<body class="bg-gray-50 font-inter">
+    <header class="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <h1 class="text-4xl font-bold">Text Search Engine</h1>
+            <p class="mt-2 text-lg">Search the 20 Newsgroups Dataset with Advanced Ranking</p>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Search Form -->
+        <form method="POST" class="mb-8">
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+                <div class="relative w-full sm:flex-1">
+                    <input
+                        type="text"
+                        name="query"
+                        id="query-input"
+                        placeholder="Enter query (e.g., computer graphics, 'neural network', hockey AND game)"
+                        value="{{ query }}"
+                        class="w-full p-4 pr-10 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                        aria-label="Search query"
+                        autocomplete="off"
+                    >
+                    <svg class="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <div id="autocomplete-suggestions" class="absolute w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 hidden z-10 max-h-60 overflow-y-auto"></div>
+                </div>
+                <select
+                    name="category"
+                    class="p-4 rounded-lg border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    aria-label="Filter by category"
+                >
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category }}">{{ category }}</option>
+                    {% endfor %}
+                </select>
+                <button
+                    type="submit"
+                    class="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 transition shadow-md flex items-center gap-2"
+                    aria-label="Submit search"
+                >
+                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Search
+                </button>
+            </div>
+        </form>
+
+        <!-- Query Correction Suggestion -->
+        {% if corrected_query %}
+        <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-lg flex justify-between items-center">
+            <p>
+                These are results for <a href="?query={{ corrected_query }}" class="underline font-semibold">{{ corrected_query }}</a>.
+                Search instead for <a href="?query={{ query }}" class="underline font-semibold">{{ query }}</a>.
+            </p>
+            <button onclick="this.parentElement.remove()" class="text-blue-700 hover:text-blue-900" aria-label="Dismiss suggestion">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Existing Query Correction Suggestion -->
+        {% if suggestion and not corrected_query %}
+        <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded-lg flex justify-between items-center">
+            <p>
+                Did you mean: <a href="?query={{ suggestion }}" class="underline font-semibold">{{ suggestion }}</a>?
+            </p>
+            <button onclick="this.parentElement.remove()" class="text-blue-700 hover:text-blue-900" aria-label="Dismiss suggestion">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-lg">
+            <p>{{ error }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="fixed inset-0 bg-gray-800 bg-opacity-50 hidden flex items-center justify-center z-50">
+            <div class="loader"></div>
+        </div>
+
+        <!-- Search Results -->
+        {% if query %}
+        <div class="results">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Results for "{{ query }}"</h2>
+                <p class="text-gray-600">
+                    Found {{ total_tfidf + total_bm25 + total_custom }} total results (showing {{ results_tfidf | length + results_bm25 | length + results_custom | length }} on this page) in {{ search_time | round(4) }} seconds
+                </p>
+            </div>
+
+            <!-- Tabs -->
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="flex space-x-4" aria-label="Tabs">
+                    <button class="tab-button px-4 py-2 font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-600 active" data-tab="tfidf">TF-IDF ({{ total_tfidf }})</button>
+                    <button class="tab-button px-4 py-2 font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-600" data-tab="bm25">BM25 ({{ total_bm25 }})</button>
+                    <button class="tab-button px-4 py-2 font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent hover:border-blue-600" data-tab="custom">Custom Proximity ({{ total_custom }})</button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="tfidf" class="tab-content">
+                {% if results_tfidf %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for result in results_tfidf %}
+                        <div class="result bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition border border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h4 class="text-md font-semibold text-gray-800">{{ result.doc_id }}</h4>
+                            </div>
+                            <p class="text-gray-500 text-sm mt-1">Score: {{ result.score | round(4) }}</p>
+                            <p class="preview text-gray-700 text-sm mt-2">{{ result.highlight | safe }}</p>
+                            <a href="{{ url_for('view_document', doc_id=result.doc_id) }}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">View Full Document</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">No results found for TF-IDF.</p>
+                {% endif %}
+            </div>
+
+            <div id="bm25" class="tab-content hidden">
+                {% if results_bm25 %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for result in results_bm25 %}
+                        <div class="result bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition border border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h4 class="text-md font-semibold text-gray-800">{{ result.doc_id }}</h4>
+                            </div>
+                            <p class="text-gray-500 text-sm mt-1">Score: {{ result.score | round(4) }}</p>
+                            <p class="preview text-gray-700 text-sm mt-2">{{ result.highlight | safe }}</p>
+                            <a href="{{ url_for('view_document', doc_id=result.doc_id) }}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">View Full Document</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">No results found for BM25.</p>
+                {% endif %}
+            </div>
+
+            <div id="custom" class="tab-content hidden">
+                {% if results_custom %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {% for result in results_custom %}
+                        <div class="result bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition border border-gray-200">
+                            <div class="flex items-center gap-2">
+                                <svg class="h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <h4 class="text-md font-semibold text-gray-800">{{ result.doc_id }}</h4>
+                            </div>
+                            <p class="text-gray-500 text-sm mt-1">Score: {{ result.score | round(4) }}</p>
+                            <p class="preview text-gray-700 text-sm mt-2">{{ result.highlight | safe }}</p>
+                            <a href="{{ url_for('view_document', doc_id=result.doc_id) }}" class="text-blue-600 text-sm mt-2 inline-block hover:underline">View Full Document</a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-600">No results found for Custom Proximity.</p>
+                {% endif %}
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="mt-8 flex justify-center space-x-2">
+                {% for page in range(1, total_pages + 1) %}
+                <form method="GET" action="/" class="pagination-form">
+                    <input type="hidden" name="query" value="{{ query }}">
+                    <input type="hidden" name="page" value="{{ page }}">
+                    <button
+                        type="submit"
+                        class="px-4 py-2 rounded-lg {% if page == current_page %} bg-blue-600 text-white {% else %} bg-gray-200 text-gray-700 hover:bg-gray-300 {% endif %} transition"
+                        aria-label="Go to page {{ page }}"
+                    >
+                        {{ page }}
+                    </button>
+                </form>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Show loading overlay on form submit
+        document.querySelector('form').addEventListener('submit', () => {
+            document.getElementById('loading').classList.remove('hidden');
+        });
+
+        // Show loading overlay on pagination form submit
+        document.querySelectorAll('.pagination-form').forEach(form => {
+            form.addEventListener('submit', () => {
+                document.getElementById('loading').classList.remove('hidden');
+            });
+        });
+
+        // Tab functionality with loading overlay
+        const tabs = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.getElementById('loading').classList.remove('hidden');
+                setTimeout(() => {
+                    tabs.forEach(t => {
+                        t.classList.remove('active', 'border-blue-600', 'text-blue-600');
+                        t.classList.add('text-gray-600', 'border-transparent');
+                    });
+                    tab.classList.add('active', 'border-blue-600', 'text-blue-600');
+                    tabContents.forEach(content => content.classList.add('hidden'));
+                    document.getElementById(tab.dataset.tab).classList.remove('hidden');
+                    document.getElementById('loading').classList.add('hidden');
+                }, 200);
+            });
+        });
+
+        // Autocomplete functionality
+        const queryInput = document.getElementById('query-input');
+        const suggestionsDiv = document.getElementById('autocomplete-suggestions');
+
+        queryInput.addEventListener('input', async () => {
+            const query = queryInput.value.trim();
+            if (query.length < 2) {
+                suggestionsDiv.classList.add('hidden');
+                suggestionsDiv.innerHTML = '';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/autocomplete?prefix=${encodeURIComponent(query)}`);
+                const terms = await response.json();
+                suggestionsDiv.innerHTML = '';
+                if (terms && terms.length > 0) {
+                    terms.forEach(term => {
+                        const div = document.createElement('div');
+                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer text-gray-800';
+                        div.textContent = term;
+                        div.addEventListener('click', () => {
+                            queryInput.value = term;
+                            suggestionsDiv.classList.add('hidden');
+                            suggestionsDiv.innerHTML = '';
+                        });
+                        suggestionsDiv.appendChild(div);
+                    });
+                    suggestionsDiv.classList.remove('hidden');
+                } else {
+                    suggestionsDiv.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Error fetching autocomplete terms:', error);
+                suggestionsDiv.classList.add('hidden');
+            }
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!queryInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.classList.add('hidden');
+                suggestionsDiv.innerHTML = '';
+            }
+        });
+
+        // Ensure suggestions are visible when input is focused
+        queryInput.addEventListener('focus', () => {
+            if (suggestionsDiv.innerHTML.trim() !== '') {
+                suggestionsDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

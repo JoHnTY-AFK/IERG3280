@@ -1,0 +1,7 @@
+whoosh==2.7.4
+flask==2.0.1
+pandas>=1.5.0
+nltk==3.6.3
+jinja2==3.0.1
+werkzeug<3.0.0
+pyspellchecker>=0.7.0

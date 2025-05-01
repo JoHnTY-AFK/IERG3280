@@ -1,0 +1,34 @@
+IERG3280_PROJECT/
+├── dataset/
+├── dataset_processed/
+├── docs/
+│   ├── case_studies.md
+│   ├── concepts_summary.md
+│   ├── design_document.md
+│   ├── project_report.md
+│   └── social_analysis.md
+├── index/
+├── src/
+│   ├── __init__.py
+│   ├── index_builder.py
+│   ├── prepare_20newsgroups.py
+│   ├── preprocess.py
+│   ├── search.py
+│   └── utils.py
+├── static/
+│   └── search.css
+├── templates/
+│   ├── document.html
+│   └── search.html
+├── tests/
+│   ├── test_queries.csv
+│   └── test_search.py
+├── venv/
+├── .gitignore
+├── app.py
+├── commands.txt
+├── README.md
+├── requirements.txt
+├── search_engine.log
+├── setup.py
+└── structure.txt
